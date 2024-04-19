@@ -1,4 +1,4 @@
-package com.api.rest;
+package com.project.db;
 
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;

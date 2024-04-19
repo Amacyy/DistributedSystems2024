@@ -20,8 +20,12 @@ import com.project.db.Employee;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 import java.io.StringReader;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -95,20 +99,28 @@ public class Client extends JFrame implements ActionListener {
 	    panel.add(createLabeledComponentWithButton("ID:", idSearchField, idSearchButton));
 
 		// Search by Name
-		JTextField nameSearchField = createTextField();
-		panel.add(createLabeledComponent("Name:", nameSearchField));
+	    JTextField nameSearchField = createTextField();
+	    JButton nameSearchButton = new JButton("Search by Name");
+	    nameSearchButton.addActionListener(e -> searchByName(nameSearchField.getText()));
+	    panel.add(createLabeledComponentWithButton("Name:", nameSearchField, nameSearchButton));
 
 		// Search by Age
-		JTextField ageSearchField = createTextField();
-		panel.add(createLabeledComponent("Age:", ageSearchField));
+	    JTextField ageSearchField = createTextField();
+	    JButton ageSearchButton = new JButton("Search by Age");
+	    ageSearchButton.addActionListener(e -> searchByAge(ageSearchField.getText()));
+	    panel.add(createLabeledComponentWithButton("Age:", ageSearchField, ageSearchButton));
 
-		// Search by Sector (Text Field instead of Dropdown)
+
 	    JTextField sectorSearchField = createTextField();
-	    panel.add(createLabeledComponent("Sector:", sectorSearchField));
+	    JButton sectorSearchButton = new JButton("Search by Sector");
+	    sectorSearchButton.addActionListener(e -> searchBySector(sectorSearchField.getText()));
+	    panel.add(createLabeledComponentWithButton("Sector:", sectorSearchField, sectorSearchButton));
+
 
 		// Unified Search Button
-		JButton searchButton = new JButton("Search");
-		panel.add(searchButton);
+	    JButton searchButton = new JButton("Search All");
+	    searchButton.addActionListener(e -> fetchAllEmployees());
+	    panel.add(searchButton);
 
 		return panel;
 	}
@@ -308,9 +320,109 @@ public class Client extends JFrame implements ActionListener {
 	        JOptionPane.showMessageDialog(null, "Error searching by ID: " + e.getMessage());
 	    }
 	}
+	
+	private void searchByName(String name) {
+	    try {
+	        URI uri = new URIBuilder()
+	                .setScheme("http")
+	                .setHost("localhost")
+	                .setPort(8080)
+	                .setPath("/MyRestAPI/rest/employees/name/" + URLEncoder.encode(name, StandardCharsets.UTF_8.toString()))
+	                .build();
+
+	        HttpGet request = new HttpGet(uri);
+	        try (CloseableHttpClient client = HttpClients.createDefault();
+	             CloseableHttpResponse response = client.execute(request)) {
+	            HttpEntity entity = response.getEntity();
+	            String responseString = EntityUtils.toString(entity);
+	            List<Employee> employees = parseXMLWithPullParser(responseString);
+	            updateEmployeeTable(employees);
+	        }
+	    } catch (URISyntaxException e) {
+	        JOptionPane.showMessageDialog(null, "Error in URI Syntax: " + e.getMessage());
+	    } catch (IOException e) {
+	        JOptionPane.showMessageDialog(null, "IO Exception: " + e.getMessage());
+	    } catch (Exception e) {
+	        JOptionPane.showMessageDialog(null, "General Error: " + e.getMessage());
+	    }
+	}
+	
+	private void searchByAge(String age) {
+	    // Assuming Apache HttpClient for REST API interaction
+	    try {
+	        URI uri = new URIBuilder()
+	                .setScheme("http")
+	                .setHost("localhost")
+	                .setPort(8080)
+	                .setPath("/MyRestAPI/rest/employees/age/" + URLEncoder.encode(age, StandardCharsets.UTF_8.toString()))
+	                .build();
+
+	        HttpGet request = new HttpGet(uri);
+	        try (CloseableHttpClient client = HttpClients.createDefault();
+	             CloseableHttpResponse response = client.execute(request)) {
+	            HttpEntity entity = response.getEntity();
+	            String responseString = EntityUtils.toString(entity);
+	            // Assuming the response is XML, parse it and update your table
+	            List<Employee> employees = parseXMLWithPullParser(responseString);
+	            updateEmployeeTable(employees);
+	        }
+	    } catch (URISyntaxException e) {
+	        JOptionPane.showMessageDialog(null, "Error in URI Syntax: " + e.getMessage());
+	    } catch (IOException e) {
+	        JOptionPane.showMessageDialog(null, "IO Exception: " + e.getMessage());
+	    } catch (Exception e) {
+	        JOptionPane.showMessageDialog(null, "General Error: " + e.getMessage());
+	    }
+	}
+	
+	private void searchBySector(String sector) {
+	    try {
+	        URI uri = new URIBuilder()
+	                .setScheme("http")
+	                .setHost("localhost")
+	                .setPort(8080)
+	                .setPath("/MyRestAPI/rest/employees/searchsector/" + URLEncoder.encode(sector, StandardCharsets.UTF_8.toString()))
+	                .build();
+
+	        HttpGet request = new HttpGet(uri);
+	        try (CloseableHttpClient client = HttpClients.createDefault();
+	             CloseableHttpResponse response = client.execute(request)) {
+	            HttpEntity entity = response.getEntity();
+	            String responseString = EntityUtils.toString(entity);
+	            // Assuming the response is XML, parse it and update your table
+	            List<Employee> employees = parseXMLWithPullParser(responseString);
+	            updateEmployeeTable(employees);
+	        }
+	    } catch (Exception e) {
+	        JOptionPane.showMessageDialog(null, "Error searching by Sector: " + e.getMessage());
+	    }
+	}
+	
+	private void fetchAllEmployees() {
+	    try {
+	        URI uri = new URIBuilder()
+	                .setScheme("http")
+	                .setHost("localhost")
+	                .setPort(8080)
+	                .setPath("/MyRestAPI/rest/employees")
+	                .build();
+
+	        HttpGet request = new HttpGet(uri);
+	        CloseableHttpClient client = HttpClients.createDefault();
+	        CloseableHttpResponse response = client.execute(request);
+	        HttpEntity entity = response.getEntity();
+
+	        String responseXml = EntityUtils.toString(entity);
+	        List<Employee> employees = parseXMLWithPullParser(responseXml);
+	        updateEmployeeTable(employees);
+
+	        client.close();
+	    } catch (Exception e) {
+	        JOptionPane.showMessageDialog(null, "Error fetching all employees: " + e.getMessage());
+	    }
+	}
 
 	
-
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		// TODO Auto-generated method stub

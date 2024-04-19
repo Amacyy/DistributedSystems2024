@@ -5,12 +5,18 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpStatus;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -137,27 +143,59 @@ public class Client extends JFrame implements ActionListener {
 	}
 
 	private JPanel createModifyPanel(String type) {
-		JPanel panel = new JPanel();
-		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+	    JPanel panel = new JPanel();
+	    panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
-		JTextField idField = createTextField();
-		JTextField nameField = createTextField();
-		JTextField ageField = createTextField();
-		JTextField sectorField = createTextField();
-		JTextField buidlingField = createTextField();
-		// Populate sectorComboBox as needed
+	    // Shared text fields; initialized here to avoid duplication in if-else blocks
+	    JTextField idField = createTextField();
+	    JTextField nameField = createTextField();
+	    JTextField ageField = createTextField();
+	    JTextField sectorField = createTextField();
+	    JTextField buildingField = createTextField();
 
-		panel.add(createLabeledComponent("ID:", idField));
-		panel.add(createLabeledComponent("Name:", nameField));
-		panel.add(createLabeledComponent("Age:", ageField));
-		panel.add(createLabeledComponent("Sector:", sectorField));
-		panel.add(createLabeledComponent("Building:", buidlingField));
+	    // Add ID field for all types since it's common for Insert, Update, and Delete
+	    panel.add(createLabeledComponent("ID:", idField));
 
-		JButton actionButton = new JButton(type);
-		panel.add(actionButton);
+	    // Conditional addition of text fields based on the action type
+	    if (type.equals("Insert") || type.equals("Update")) {
+	        // For Insert and Update, we need all fields
+	        panel.add(createLabeledComponent("Name:", nameField));
+	        panel.add(createLabeledComponent("Age:", ageField));
+	        panel.add(createLabeledComponent("Sector:", sectorField));
+	        panel.add(createLabeledComponent("Building:", buildingField));
+	    }
 
-		return panel;
+	    // Button for insert, update, or delete based on type
+	    JButton actionButton = new JButton(type);
+	    if (type.equals("Insert")) {
+	        actionButton.addActionListener(e -> insertEmployee(
+	            idField.getText(),
+	            nameField.getText(),
+	            ageField.getText(),
+	            sectorField.getText(),
+	            buildingField.getText()
+	        ));
+	    } else if (type.equals("Update")) {
+	        actionButton.addActionListener(e -> updateEmployee(
+	            idField.getText(),
+	            nameField.getText(),
+	            ageField.getText(),
+	            sectorField.getText(),
+	            buildingField.getText()
+	        ));
+	    } else if (type.equals("Delete")) {
+	        // For Delete, we only need the ID field; the rest are not added
+	        actionButton.addActionListener(e -> deleteEmployeeById(idField.getText()));
+	    }
+
+	    panel.add(actionButton);
+
+	    return panel;
 	}
+
+
+
+
 
 	private JTextField createTextField() {
 		JTextField textField = new JTextField();
@@ -421,6 +459,103 @@ public class Client extends JFrame implements ActionListener {
 	        JOptionPane.showMessageDialog(null, "Error fetching all employees: " + e.getMessage());
 	    }
 	}
+	
+	private void insertEmployee(String id, String name, String age, String sector, String building) {
+	    try {
+	        URI uri = new URIBuilder()
+	                .setScheme("http")
+	                .setHost("localhost")
+	                .setPort(8080)
+	                .setPath("/MyRestAPI/rest/employees/insert")  // Ensure this is the correct endpoint
+	                .build();
+
+	        List<NameValuePair> params = new ArrayList<>();
+	        params.add(new BasicNameValuePair("id", id));
+	        params.add(new BasicNameValuePair("name", name));
+	        params.add(new BasicNameValuePair("age", age));
+	        params.add(new BasicNameValuePair("sector", sector));
+	        params.add(new BasicNameValuePair("building", building));
+
+	        HttpPost post = new HttpPost(uri);
+	        post.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+
+	        try (CloseableHttpClient client = HttpClients.createDefault();
+	             CloseableHttpResponse response = client.execute(post)) {
+	            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+	                JOptionPane.showMessageDialog(null, "Employee inserted successfully");
+	       
+	            } else {
+	                JOptionPane.showMessageDialog(null, "Failed to insert employee. Status: " + response.getStatusLine().getStatusCode());
+	            }
+	        }
+	    } catch (URISyntaxException | IOException e) {
+	        JOptionPane.showMessageDialog(null, "Error inserting employee: " + e.getMessage());
+	    }
+	}
+	
+	private void updateEmployee(String id, String name, String age, String sector, String building) {
+	    try {
+	        URI uri = new URIBuilder()
+	                .setScheme("http")
+	                .setHost("localhost")
+	                .setPort(8080)
+	                .setPath("/MyRestAPI/rest/employees/update")  // Make sure this endpoint is configured to handle updates
+	                .build();
+
+	        List<NameValuePair> params = new ArrayList<>();
+	        params.add(new BasicNameValuePair("id", id));
+	        params.add(new BasicNameValuePair("name", name));
+	        params.add(new BasicNameValuePair("age", age));
+	        params.add(new BasicNameValuePair("sector", sector));
+	        params.add(new BasicNameValuePair("building", building));
+
+	        HttpPut put = new HttpPut(uri);
+	        put.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+
+	        try (CloseableHttpClient client = HttpClients.createDefault();
+	             CloseableHttpResponse response = client.execute(put)) {
+	            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+	                JOptionPane.showMessageDialog(null, "Employee updated successfully");
+	            } else {
+	                JOptionPane.showMessageDialog(null, "Failed to update employee. Status: " + response.getStatusLine().getStatusCode());
+	            }
+	        }
+	    } catch (Exception e) {
+	        JOptionPane.showMessageDialog(null, "Error updating employee: " + e.getMessage());
+	    }
+	}
+	
+	private void deleteEmployeeById(String id) {
+	    try {
+	        // Build the URI for the DELETE request
+	        URI uri = new URIBuilder()
+	                .setScheme("http")
+	                .setHost("localhost")
+	                .setPort(8080)
+	                .setPath("/MyRestAPI/rest/employees/delete/" + URLEncoder.encode(id, StandardCharsets.UTF_8.name()))
+	                .build();
+
+	        // Create the HTTP DELETE request
+	        HttpDelete delete = new HttpDelete(uri);
+
+	        // Execute the request using HttpClient
+	        try (CloseableHttpClient client = HttpClients.createDefault();
+	             CloseableHttpResponse response = client.execute(delete)) {
+	            // Check the response status code
+	            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+	                JOptionPane.showMessageDialog(null, "Employee deleted successfully");
+	            } else {
+	                JOptionPane.showMessageDialog(null, "Failed to delete employee. Status: " + response.getStatusLine().getStatusCode());
+	            }
+	        }
+	    } catch (Exception e) {
+	        JOptionPane.showMessageDialog(null, "Error deleting employee: " + e.getMessage());
+	    }
+	}
+
+
+
+
 
 	
 	@Override

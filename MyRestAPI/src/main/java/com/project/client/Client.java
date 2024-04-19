@@ -1,4 +1,5 @@
 package com.project.client;
+import java.util.List;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -11,16 +12,22 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserFactory;
+
+import com.project.db.Employee;
 
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.StringReader;
 import java.net.URI;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 
 public class Client extends JFrame implements ActionListener {
 	private JTable employeesTable;
@@ -198,7 +205,73 @@ public class Client extends JFrame implements ActionListener {
 
 		String responseXml = EntityUtils.toString(entity);
 		
-		System.out.println(responseXml);
+		List<Employee> employees = parseXMLWithPullParser(responseXml);
+        updateEmployeeTable(employees);
+	}
+	
+	
+	private List<Employee> parseXMLWithPullParser(String xmlData) throws Exception {
+        List<Employee> employees = new ArrayList<>();
+        XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+        XmlPullParser parser = factory.newPullParser();
+
+        parser.setInput(new StringReader(xmlData));
+        int eventType = parser.getEventType();
+        Employee currentEmployee = null;
+
+        while (eventType != XmlPullParser.END_DOCUMENT) {
+            String tagName = parser.getName();
+            switch (eventType) {
+                case XmlPullParser.START_TAG:
+                    if ("employee".equalsIgnoreCase(tagName)) {
+                        currentEmployee = new Employee();
+                    } else if (currentEmployee != null) {
+                        switch (tagName.toLowerCase()) {
+                            case "id":
+                                currentEmployee.setId(Integer.parseInt(parser.nextText()));
+                                break;
+                            case "name":
+                                currentEmployee.setName(parser.nextText());
+                                break;
+                            case "age":
+                                currentEmployee.setAge(Integer.parseInt(parser.nextText()));
+                                break;
+                            //case "sector":
+                             //   currentEmployee.setSector(parser.nextText());
+                               // break;
+                            case "building":
+                                currentEmployee.setBuilding(parser.nextText());
+                                break;
+                        }
+                    }
+                    break;
+                case XmlPullParser.END_TAG:
+                    if ("employee".equalsIgnoreCase(tagName) && currentEmployee != null) {
+                        employees.add(currentEmployee);
+                        currentEmployee = null;
+                    }
+                    break;
+            }
+            eventType = parser.next();
+        }
+        return employees;
+    }
+	
+	private void updateEmployeeTable(List<Employee> employees) {
+        SwingUtilities.invokeLater(() -> {
+            DefaultTableModel model = (DefaultTableModel) employeesTable.getModel();
+            model.setRowCount(0);
+            for (Employee employee : employees) {
+                model.addRow(new Object[]{
+                        employee.getId(),
+                        employee.getName(),
+                        employee.getAge(),
+                        employee.getSector(),
+                        employee.getBuilding()
+                });
+            }
+        });
+    }
 
 
 		// Call pull parser to parse responseXml... (return a list of employees)
@@ -218,7 +291,7 @@ public class Client extends JFrame implements ActionListener {
 //			JOptionPane.showMessageDialog(this, "Error loading data: " + e.getMessage(), "Database Error",
 //					JOptionPane.ERROR_MESSAGE);
 //		}
-	}
+	
 
 	@Override
 	public void actionPerformed(ActionEvent e) {

@@ -89,8 +89,10 @@ public class Client extends JFrame implements ActionListener {
 		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
 		// Search by ID
-		JTextField idSearchField = createTextField();
-		panel.add(createLabeledComponent("ID:", idSearchField));
+	    JTextField idSearchField = createTextField();
+	    JButton idSearchButton = new JButton("Search by ID");
+	    idSearchButton.addActionListener(e -> searchById(idSearchField.getText()));
+	    panel.add(createLabeledComponentWithButton("ID:", idSearchField, idSearchButton));
 
 		// Search by Name
 		JTextField nameSearchField = createTextField();
@@ -100,18 +102,26 @@ public class Client extends JFrame implements ActionListener {
 		JTextField ageSearchField = createTextField();
 		panel.add(createLabeledComponent("Age:", ageSearchField));
 
-		// Search by Sector (Dropdown)
-		JComboBox<String> sectorSearchComboBox = createComboBox();
-		// Populate sectorSearchComboBox with sector options
-		// Example: sectorSearchComboBox.addItem("Sector 1"); (Add actual sector items
-		// from your database or list)
-		panel.add(createLabeledComponent("Sector:", sectorSearchComboBox));
+		// Search by Sector (Text Field instead of Dropdown)
+	    JTextField sectorSearchField = createTextField();
+	    panel.add(createLabeledComponent("Sector:", sectorSearchField));
 
 		// Unified Search Button
 		JButton searchButton = new JButton("Search");
 		panel.add(searchButton);
 
 		return panel;
+	}
+	
+	private JPanel createLabeledComponentWithButton(String label, JTextField textField, JButton button) {
+	    JPanel panel = new JPanel();
+	    panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
+	    panel.add(new JLabel(label));
+	    panel.add(Box.createRigidArea(new Dimension(5, 0)));
+	    panel.add(textField);
+	    panel.add(button);
+	    panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+	    return panel;
 	}
 
 	private JPanel createModifyPanel(String type) {
@@ -272,25 +282,33 @@ public class Client extends JFrame implements ActionListener {
             }
         });
     }
+	
+	private void searchById(String id) {
+	    // Assuming Apache HttpClient for REST API interaction
+	    try {
+	        URI uri = new URIBuilder()
+	                .setScheme("http")
+	                .setHost("localhost")
+	                .setPort(8080)
+	                .setPath("/MyRestAPI/rest/employees/id/" + id)
+	                .build();
 
+	        HttpGet request = new HttpGet(uri);
+	        CloseableHttpClient client = HttpClients.createDefault();
+	        CloseableHttpResponse response = client.execute(request);
+	        HttpEntity entity = response.getEntity();
 
-		// Call pull parser to parse responseXml... (return a list of employees)
+	        String responseString = EntityUtils.toString(entity);
+	        // Assuming the response is XML, parse it and update your table
+	        List<Employee> employees = parseXMLWithPullParser(responseString);
+	        updateEmployeeTable(employees);
 
-//		DefaultTableModel model = (DefaultTableModel) employeesTable.getModel();
-//		model.setRowCount(0);
-//		try (Connection conn = DatabaseUtils.getConnection(); // Utilize your connection method
-//				Statement stmt = conn.createStatement();
-//				ResultSet rs = stmt.executeQuery("SELECT id, name, age, sector FROM employees")) { // Adjust SQL as
-//																									// needed
-//
-//			while (rs.next()) {
-//				Object[] row = { rs.getInt("id"), rs.getString("name"), rs.getInt("age"), rs.getString("sector") };
-//				model.addRow(row);
-//			}
-//		} catch (SQLException e) {
-//			JOptionPane.showMessageDialog(this, "Error loading data: " + e.getMessage(), "Database Error",
-//					JOptionPane.ERROR_MESSAGE);
-//		}
+	        client.close();
+	    } catch (Exception e) {
+	        JOptionPane.showMessageDialog(null, "Error searching by ID: " + e.getMessage());
+	    }
+	}
+
 	
 
 	@Override
